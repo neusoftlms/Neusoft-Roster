@@ -70,3 +70,10 @@ function deleteEmployee(index) {
 
 // Initial load of employee data
 loadEmployees();
+$('#attritionTable').DataTable({
+    "ajax": {
+        "url": "your_data_source_url",
+        "dataSrc": "" // or the appropriate field that holds the data in the response
+    }
+});
+
