@@ -1,244 +1,72 @@
-$(document).ready(function() {
-    // Initialize DataTables
-    const employeesTable = $('#employeesTable').DataTable({
-        ajax: {
-            url: '/api/employees',
-            dataSrc: ''
-        },
-        columns: [
-            { data: 'employeeCode' },
-            { data: 'employeeName' },
-            { data: 'position' },
-            { data: 'lob' },
-            { 
-                data: 'hiredDate',
-                render: function(data) {
-                    return new Date(data).toLocaleDateString();
-                }
-            },
-            { 
-                data: 'status',
-                render: function(data) {
-                    return data === 'Active' 
-                        ? '<span class="badge bg-success">Active</span>' 
-                        : '<span class="badge bg-danger">Inactive</span>';
-                }
-            },
-            {
-                data: null,
-                render: function(data) {
-                    return `
-                        <button class="btn btn-sm btn-outline-primary view-employee" data-id="${data.id}">
-                            <i class="bi bi-eye"></i> View
-                        </button>
-                        <button class="btn btn-sm btn-outline-warning edit-employee" data-id="${data.id}">
-                            <i class="bi bi-pencil"></i> Edit
-                        </button>
-                    `;
-                }
-            }
-        ]
+// Check if there are any employees stored in localStorage
+if (!localStorage.getItem("employees")) {
+    localStorage.setItem("employees", JSON.stringify([]));
+}
+
+// Function to load employee data from localStorage and display
+function loadEmployees() {
+    const employees = JSON.parse(localStorage.getItem("employees"));
+    const employeeList = document.getElementById("employee-list").getElementsByTagName("tbody")[0];
+    employeeList.innerHTML = ""; // Clear current employee list
+
+    employees.forEach((employee, index) => {
+        const row = employeeList.insertRow();
+        row.insertCell(0).textContent = employee.name;
+        row.insertCell(1).textContent = employee.code;
+        row.insertCell(2).textContent = employee.hireDate;
+        row.insertCell(3).textContent = employee.position;
+        row.insertCell(4).textContent = employee.gender;
+        row.insertCell(5).textContent = employee.email;
+
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "Delete";
+        deleteButton.classList.add("delete");
+        deleteButton.onclick = () => deleteEmployee(index);
+        row.insertCell(6).appendChild(deleteButton);
     });
+}
 
-    const attritionTable = $('#attritionTable').DataTable({
-        ajax: {
-            url: '/api/attritions',
-            dataSrc: ''
-        },
-        columns: [
-            { 
-                data: 'employee',
-                render: function(data) {
-                    return data.employeeName;
-                }
-            },
-            { 
-                data: 'lastWorkingDate',
-                render: function(data) {
-                    return new Date(data).toLocaleDateString();
-                }
-            },
-            { data: 'reason' },
-            { data: 'details' },
-            { 
-                data: 'createdAt',
-                render: function(data) {
-                    return new Date(data).toLocaleDateString();
-                }
-            },
-            {
-                data: null,
-                render: function(data) {
-                    return `
-                        <button class="btn btn-sm btn-outline-primary view-attrition" data-id="${data.id}">
-                            <i class="bi bi-eye"></i> View
-                        </button>
-                    `;
-                }
-            }
-        ]
-    });
+// Handle employee form submission
+document.getElementById("employee-form").addEventListener("submit", function (e) {
+    e.preventDefault();
 
-    // Load employees for attrition dropdown
-    $.get('/api/employees', function(data) {
-        const dropdown = $('#attritionEmployee');
-        dropdown.empty();
-        dropdown.append('<option value="">Select Employee</option>');
-        data.forEach(employee => {
-            if (employee.status === 'Active') {
-                dropdown.append(`<option value="${employee.id}">${employee.employeeName} (${employee.employeeCode})</option>`);
-            }
-        });
-    });
+    const name = document.getElementById("employee-name").value;
+    const code = document.getElementById("employee-code").value;
+    const hireDate = document.getElementById("hire-date").value;
+    const position = document.getElementById("position").value;
+    const gender = document.getElementById("gender").value;
+    const email = document.getElementById("email").value;
 
-    // Form submission handlers
-    $('#employeeForm').submit(function(e) {
-        e.preventDefault();
-        const formData = $(this).serializeArray();
-        const data = {};
-        formData.forEach(item => {
-            data[item.name] = item.value;
-        });
+    const employee = {
+        name,
+        code,
+        hireDate,
+        position,
+        gender,
+        email
+    };
 
-        $.ajax({
-            url: '/api/employees',
-            method: 'POST',
-            data: JSON.stringify(data),
-            contentType: 'application/json',
-            success: function(response) {
-                alert('Employee saved successfully');
-                $('#newEmployeeModal').modal('hide');
-                employeesTable.ajax.reload();
-                $('#employeeForm')[0].reset();
-            },
-            error: function(xhr) {
-                alert('Error saving employee: ' + xhr.responseJSON.message);
-            }
-        });
-    });
+    // Get current employees
+    const employees = JSON.parse(localStorage.getItem("employees"));
 
-    $('#attritionForm').submit(function(e) {
-        e.preventDefault();
-        const formData = $(this).serializeArray();
-        const data = {};
-        formData.forEach(item => {
-            data[item.name] = item.value;
-        });
+    // Add the new employee to the list
+    employees.push(employee);
 
-        $.ajax({
-            url: '/api/attritions',
-            method: 'POST',
-            data: JSON.stringify(data),
-            contentType: 'application/json',
-            success: function(response) {
-                alert('Attrition recorded successfully');
-                $('#newAttritionModal').modal('hide');
-                attritionTable.ajax.reload();
-                employeesTable.ajax.reload();
-                $('#attritionForm')[0].reset();
-            },
-            error: function(xhr) {
-                alert('Error recording attrition: ' + xhr.responseJSON.message);
-            }
-        });
-    });
+    // Save back to localStorage
+    localStorage.setItem("employees", JSON.stringify(employees));
 
-    // Bulk upload handlers
-    $('#bulkUploadForm').submit(function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        
-        $.ajax({
-            url: '/api/employees/bulk',
-            method: 'POST',
-            data: formData,
-            contentType: false,
-            processData: false,
-            success: function(response) {
-                $('#uploadResults').show();
-                $('#successCount').text(response.successCount);
-                $('#errorCount').text(response.errorCount);
-                
-                const errorDetails = $('#errorDetails');
-                errorDetails.empty();
-                
-                if (response.errors && response.errors.length > 0) {
-                    const table = $('<table class="table table-sm"></table>');
-                    const thead = $('<thead><tr><th>Row</th><th>Error</th></tr></thead>');
-                    const tbody = $('<tbody></tbody>');
-                    
-                    response.errors.forEach(error => {
-                        tbody.append(`<tr><td>${error.row}</td><td>${error.message}</td></tr>`);
-                    });
-                    
-                    table.append(thead).append(tbody);
-                    errorDetails.append(table);
-                }
-                
-                employeesTable.ajax.reload();
-            },
-            error: function(xhr) {
-                alert('Error processing bulk upload: ' + xhr.responseJSON.message);
-            }
-        });
-    });
-
-    $('#bulkAttritionForm').submit(function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        
-        $.ajax({
-            url: '/api/attritions/bulk',
-            method: 'POST',
-            data: formData,
-            contentType: false,
-            processData: false,
-            success: function(response) {
-                $('#attritionResults').show();
-                $('#attritionSuccessCount').text(response.successCount);
-                $('#attritionErrorCount').text(response.errorCount);
-                
-                const errorDetails = $('#attritionErrorDetails');
-                errorDetails.empty();
-                
-                if (response.errors && response.errors.length > 0) {
-                    const table = $('<table class="table table-sm"></table>');
-                    const thead = $('<thead><tr><th>Employee</th><th>Error</th></tr></thead>');
-                    const tbody = $('<tbody></tbody>');
-                    
-                    response.errors.forEach(error => {
-                        tbody.append(`<tr><td>${error.employee}</td><td>${error.message}</td></tr>`);
-                    });
-                    
-                    table.append(thead).append(tbody);
-                    errorDetails.append(table);
-                }
-                
-                attritionTable.ajax.reload();
-                employeesTable.ajax.reload();
-            },
-            error: function(xhr) {
-                alert('Error processing bulk attrition: ' + xhr.responseJSON.message);
-            }
-        });
-    });
-
-    // View/edit employee handlers
-    $('#employeesTable').on('click', '.view-employee', function() {
-        const employeeId = $(this).data('id');
-        // Implement view functionality
-        alert('View employee ' + employeeId);
-    });
-
-    $('#employeesTable').on('click', '.edit-employee', function() {
-        const employeeId = $(this).data('id');
-        // Implement edit functionality
-        alert('Edit employee ' + employeeId);
-    });
-
-    $('#attritionTable').on('click', '.view-attrition', function() {
-        const attritionId = $(this).data('id');
-        // Implement view functionality
-        alert('View attrition ' + attritionId);
-    });
+    // Reset form and reload employees
+    document.getElementById("employee-form").reset();
+    loadEmployees();
 });
+
+// Delete employee from localStorage
+function deleteEmployee(index) {
+    const employees = JSON.parse(localStorage.getItem("employees"));
+    employees.splice(index, 1); // Remove employee at given index
+    localStorage.setItem("employees", JSON.stringify(employees));
+    loadEmployees();
+}
+
+// Initial load of employee data
+loadEmployees();
