@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Record Attrition</title>
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+<body>
+    <h1>Record Employee Attrition</h1>
+    <form id="attritionForm">
+        <label for="employee_code">Employee Code:</label><input type="text" id="employee_code" name="employee_code" required><br><br>
+        <label for="employee_name">Employee Name:</label><input type="text" id="employee_name" name="employee_name"><br><br>
+        <label for="last_working_day">Last Working Day:</label><input type="date" id="last_working_day" name="last_working_day" required><br><br>
+        <label for="attrition_reason">Attrition Reason:</label><textarea id="attrition_reason" name="attrition_reason" required></textarea><br><br>
+        <label for="remarks">Remarks:</label><textarea id="remarks" name="remarks"></textarea><br><br>
+        <button type="submit">Submit</button>
+    </form>
+    <p><a href="index.html">Back to Home</a></p>
+    <script>
+        document.getElementById('attritionForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
+
+            // In a real application, you would send this data to a backend API
+            console.log('Attrition Data:', data);
+            alert('Attrition data submitted (would be sent to backend)');
+        });
+    </script>
+</body>
+</html>
