@@ -1,101 +1,100 @@
-const express = require('express');
-const router = express.Router();
-const { db } = require('../database/db');
-const xlsx = require('xlsx');
-const fs = require('fs');
-
-// Get all employees
-router.get('/', (req, res) => {
-    db.all('SELECT * FROM employees', [], (err, rows) => {
-        if (err) {
-            return res.status(500).json({ message: err.message });
-        }
-        res.json(rows);
-    });
-});
-
-// Get single employee
-router.get('/:id', (req, res) => {
-    db.get('SELECT * FROM employees WHERE id = ?', [req.params.id], (err, row) => {
-        if (err) {
-            return res.status(500).json({ message: err.message });
-        }
-        if (!row) {
-            return res.status(404).json({ message: 'Employee not found' });
-        }
-        res.json(row);
-    });
-});
-
-// Create new employee
-router.post('/', (req, res) => {
-    const employee = req.body;
-    const fields = Object.keys(employee);
-    const values = Object.values(employee);
-    const placeholders = fields.map(() => '?').join(',');
-
-    const sql = `INSERT INTO employees (${fields.join(',')}) VALUES (${placeholders})`;
-    
-    db.run(sql, values, function(err) {
-        if (err) {
-            return res.status(400).json({ message: err.message });
-        }
-        res.status(201).json({ id: this.lastID });
-    });
-});
-
-// Bulk upload employees
-router.post('/bulk', (req, res) => {
-    if (!req.files || !req.files.employeeFile) {
-        return res.status(400).json({ message: 'No file uploaded' });
+class Employee {
+    static getAll() {
+        return JSON.parse(localStorage.getItem('employees') || [];
     }
 
-    const file = req.files.employeeFile;
-    const workbook = xlsx.read(file.data, { type: 'buffer' });
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const data = xlsx.utils.sheet_to_json(worksheet);
+    static getById(id) {
+        return this.getAll().find(emp => emp.id == id);
+    }
 
-    const success = [];
-    const errors = [];
+    static create(employee) {
+        const employees = this.getAll();
+        
+        // Generate ID if not provided
+        if (!employee.id) {
+            const maxId = employees.reduce((max, emp) => Math.max(max, emp.id || 0), 0);
+            employee.id = maxId + 1;
+        }
+        
+        // Set timestamps
+        employee.createdAt = employee.createdAt || new Date().toISOString();
+        employee.updatedAt = new Date().toISOString();
+        
+        employees.push(employee);
+        localStorage.setItem('employees', JSON.stringify(employees));
+        return employee;
+    }
 
-    db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
+    static update(id, employeeData) {
+        const employees = this.getAll();
+        const index = employees.findIndex(emp => emp.id == id);
+        
+        if (index === -1) {
+            return null;
+        }
+        
+        // Preserve original creation date
+        employeeData.createdAt = employees[index].createdAt;
+        employeeData.updatedAt = new Date().toISOString();
+        
+        employees[index] = { ...employees[index], ...employeeData };
+        localStorage.setItem('employees', JSON.stringify(employees));
+        return employees[index];
+    }
 
-        data.forEach((row, index) => {
+    static deactivate(id) {
+        const employee = this.getById(id);
+        if (employee) {
+            employee.status = 'Inactive';
+            employee.updatedAt = new Date().toISOString();
+            this.update(id, employee);
+        }
+    }
+
+    static bulkCreate(employeeData) {
+        const results = {
+            successCount: 0,
+            errorCount: 0,
+            errors: []
+        };
+        
+        const employees = this.getAll();
+        const newEmployees = [];
+        
+        employeeData.forEach((emp, index) => {
             try {
                 // Validate required fields
-                if (!row.employeeCode || !row.employeeName || !row.position) {
+                if (!emp.employeeCode || !emp.employeeName || !emp.position) {
                     throw new Error('Missing required fields');
                 }
-
-                // Insert employee
-                const fields = Object.keys(row);
-                const values = Object.values(row);
-                const placeholders = fields.map(() => '?').join(',');
-                const sql = `INSERT INTO employees (${fields.join(',')}) VALUES (${placeholders})`;
-
-                db.run(sql, values, function(err) {
-                    if (err) {
-                        throw new Error(err.message);
-                    }
-                    success.push({ row: index + 2, id: this.lastID });
-                });
+                
+                // Check for duplicate employee code
+                if (employees.some(e => e.employeeCode === emp.employeeCode)) {
+                    throw new Error('Employee code already exists');
+                }
+                
+                // Set default values
+                emp.id = employees.length + newEmployees.length + 1;
+                emp.status = 'Active';
+                emp.createdAt = new Date().toISOString();
+                emp.updatedAt = new Date().toISOString();
+                
+                newEmployees.push(emp);
+                results.successCount++;
             } catch (error) {
-                errors.push({ row: index + 2, message: error.message });
+                results.errorCount++;
+                results.errors.push({
+                    row: index + 2, // +2 because Excel rows start at 1 and header is row 1
+                    employee: emp.employeeCode || 'Unknown',
+                    message: error.message
+                });
             }
         });
-
-        db.run('COMMIT', (err) => {
-            if (err) {
-                return res.status(500).json({ message: 'Error processing bulk upload' });
-            }
-            res.json({
-                successCount: success.length,
-                errorCount: errors.length,
-                errors
-            });
-        });
-    });
-});
-
-module.exports = router;
+        
+        if (newEmployees.length > 0) {
+            localStorage.setItem('employees', JSON.stringify([...employees, ...newEmployees]));
+        }
+        
+        return results;
+    }
+}
