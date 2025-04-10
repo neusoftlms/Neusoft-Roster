@@ -1,65 +1,55 @@
 body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f4f4f4;
+    background-color: #f8f9fa;
 }
 
-.container {
-    width: 80%;
-    margin: 20px auto;
-    background-color: white;
-    padding: 20px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+.required-field::after {
+    content: " *";
+    color: red;
 }
 
-h1 {
-    text-align: center;
+.form-section {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
 }
 
-form label {
-    display: block;
-    margin-top: 10px;
+.section-title {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+    color: #0d6efd;
 }
 
-form input, form select {
-    width: 100%;
-    padding: 8px;
-    margin: 5px 0;
+.nav-tabs .nav-link.active {
+    font-weight: bold;
+    background-color: #f8f9fa;
+    border-bottom: 3px solid #0d6efd;
 }
 
-button {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px 15px;
-    border: none;
-    cursor: pointer;
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: all 0.3s ease;
 }
 
-button:hover {
-    background-color: #45a049;
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 
-table {
-    width: 100%;
-    margin-top: 20px;
-    border-collapse: collapse;
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
 }
 
-th, td {
-    padding: 10px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
+.modal-xl {
+    max-width: 1200px;
 }
 
-th {
-    background-color: #f2f2f2;
+.error-message {
+    color: #dc3545;
+    font-size: 0.875em;
 }
 
-button.delete {
-    background-color: red;
-}
-
-button.delete:hover {
-    background-color: #cc0000;
+#githubAlert {
+    display: none;
 }
